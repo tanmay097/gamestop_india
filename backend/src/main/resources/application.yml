@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: gameswap-backend
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:gameswap}
+    username: ${DB_USER:gameswap}
+    password: ${DB_PASSWORD:gameswap_dev_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+gameswap:
+  auth:
+    jwt-secret: ${JWT_SECRET:gameswap-super-secret-jwt-key-minimum-256-bits-bangalore-2026}
+    access-expiration-seconds: ${JWT_ACCESS_EXPIRATION_SECONDS:3600}
+    refresh-expiration-seconds: ${JWT_REFRESH_EXPIRATION_SECONDS:2592000}
+    phone-hash-secret: ${PHONE_HASH_SECRET:gameswap-phone-hmac-secret-bangalore-2026}
+    phone-encryption-secret: ${PHONE_ENCRYPTION_SECRET:gameswap-32byte-aes-secret-key!!}
+    otp-provider: ${OTP_PROVIDER:mock}
+    otp-ttl-seconds: ${OTP_TTL_SECONDS:300}
+    expose-dev-otp-in-response: ${EXPOSE_DEV_OTP:true}
+  igdb:
+    client-id: ${IGDB_CLIENT_ID:}
+    client-secret: ${IGDB_CLIENT_SECRET:}
+    cache-ttl-seconds: 86400
+  matching:
+    default-radius-km: ${MATCH_DEFAULT_RADIUS_KM:5.0}
+    max-radius-km: ${MATCH_MAX_RADIUS_KM:25.0}
+    cache-ttl-seconds: 60
+  limits:
+    max-active-wants: ${MAX_ACTIVE_WANTS_PER_USER:10}
+    otp-requests-per-10m: 5
+    messages-per-minute: 30
+    wants-mutations-per-minute: 15
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}

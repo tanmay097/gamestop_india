@@ -1,0 +1,23 @@
+# Dependencies & build outputs
+node_modules/
+.next/
+out/
+build/
+.gradle/
+target/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE & OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+thumbs.db
+
+# Test artifacts
+playwright-report/
+test-results/
