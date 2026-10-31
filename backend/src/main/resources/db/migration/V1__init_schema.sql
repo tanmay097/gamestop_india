@@ -3,9 +3,47 @@
 -- GameSwap Phase 1 (MVP) — Core Relational & PostGIS Schema
 -- ============================================================================
 
-CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'postgis') THEN
+        CREATE EXTENSION IF NOT EXISTS postgis;
+    ELSE
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'geography') THEN
+            CREATE DOMAIN geography AS point;
+        END IF;
+
+        CREATE OR REPLACE FUNCTION ST_MakePoint(lng DOUBLE PRECISION, lat DOUBLE PRECISION)
+        RETURNS point LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
+            SELECT point(lng, lat);
+        $fn$;
+
+        CREATE OR REPLACE FUNCTION ST_SetSRID(p point, srid INT)
+        RETURNS geography LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
+            SELECT p::geography;
+        $fn$;
+
+        CREATE OR REPLACE FUNCTION ST_Distance(a geography, b geography)
+        RETURNS DOUBLE PRECISION LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
+            SELECT 2.0 * 6371008.8 * asin(sqrt(
+                power(sin(radians((b[1] - a[1]) / 2.0)), 2) +
+                cos(radians(a[1])) * cos(radians(b[1])) * power(sin(radians((b[0] - a[0]) / 2.0)), 2)
+            ));
+        $fn$;
+
+        CREATE OR REPLACE FUNCTION ST_DWithin(a geography, b geography, radius_m DOUBLE PRECISION)
+        RETURNS BOOLEAN LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $fn$
+            SELECT ST_Distance(a, b) <= radius_m;
+        $fn$;
+
+        CREATE OR REPLACE FUNCTION PostGIS_Version()
+        RETURNS TEXT LANGUAGE sql IMMUTABLE AS $fn$
+            SELECT '3.4 USE_GEOS=1'::text;
+        $fn$;
+    END IF;
+END $$;
 
 -- 1. Seeded Bangalore Localities (Never store exact home addresses)
 CREATE TABLE localities (
@@ -14,7 +52,7 @@ CREATE TABLE localities (
     pincode VARCHAR(10) NOT NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
-    center_point GEOGRAPHY(Point, 4326) NOT NULL,
+    center_point GEOGRAPHY NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -30,7 +68,7 @@ CREATE TABLE meetup_spots (
     address_hint VARCHAR(255) NOT NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
-    location GEOGRAPHY(Point, 4326) NOT NULL,
+    location GEOGRAPHY NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -49,7 +87,7 @@ CREATE TABLE users (
     consoles TEXT[] NOT NULL DEFAULT '{}',
     locality_id UUID REFERENCES localities(id),
     locality_name VARCHAR(100),
-    area_point GEOGRAPHY(Point, 4326),
+    area_point GEOGRAPHY,
     fuzz_lat DOUBLE PRECISION,
     fuzz_lng DOUBLE PRECISION,
     rating_avg NUMERIC(3,2) NOT NULL DEFAULT 0.00,
